@@ -1,15 +1,21 @@
-FROM python:3.6.8
+FROM python:3.6.8-slim as builder
 
-ENV SPACY_MODEL=en_core_web_sm
+COPY requirements.txt .
 
-RUN pip install https://blackstone-model.s3-eu-west-1.amazonaws.com/en_blackstone_proto-0.0.1.tar.gz
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir wheels -r requirements.txt
 
-RUN pip install nltk==3.6.2 lexnlp==2.0.0 fastapi-cloudauth==0.4.0 fastapi==0.68.1 blackstone uvicorn==0.15.0 regex==2022.3.15
+FROM python:3.6.8-slim
 
-RUN python -m nltk.downloader all
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-EXPOSE 80
-
+COPY --from=builder wheels wheels
+COPY --from=builder requirements.txt .
 COPY ./app /app
+
+RUN pip install --no-cache /wheels/* && useradd --create-home appuser
+USER appuser
+RUN python /app/ntlk_extras.py
+
 
 CMD ["python", "/app/main.py"]
